@@ -1,20 +1,13 @@
-import express from "express";
-import { productRoutes, orderRoutes } from "./routes/index.js";
-import { initSchema } from "./db/index.js";
+import { config } from "./config/env.js";
+import { createDatabase, initSchema } from "./db/index.js";
+import { buildApp } from "./app.js";
 
-initSchema();
-const app = express();
+const db = createDatabase(config.DB_PATH);
+initSchema(db);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const app = buildApp(db);
 
-app.get("/", (_, res) => {
-    res.status(200).json({ message: "Welcome to the server!" });
+app.listen(config.PORT, () => {
+    console.log(`Server is running on port ${config.PORT}`);
+    console.log(`Using database ${config.DB_PATH}`);
 });
-app.use("/products", productRoutes);
-app.use("/orders", orderRoutes);
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-}); 

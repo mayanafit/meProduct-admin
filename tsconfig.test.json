@@ -1,0 +1,11 @@
+// Typechecks the test suite without emitting. `tsconfig.json` deliberately
+// scopes `include` to src/ so `pnpm build` never emits tests into dist/.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Nothing is emitted here, so widen rootDir to cover tests/ and config.
+    "rootDir": "."
+  },
+  "include": ["src/**/*", "tests/**/*", "vitest.config.ts"]
+}
