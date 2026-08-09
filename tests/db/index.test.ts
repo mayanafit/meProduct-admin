@@ -93,6 +93,16 @@ describe("initSchema", () => {
         expect(order.status).toBe("pending");
     });
 
+    test("treats a new product as active", () => {
+        db.prepare("INSERT INTO products (name, sku, price) VALUES ('Tee', 'TEE-1', 9.99)").run();
+        const product = db.prepare("SELECT archived_at FROM products WHERE id = 1").get() as {
+            archived_at: string | null;
+        };
+
+        // NULL archived_at is what marks a product as still on sale.
+        expect(product.archived_at).toBeNull();
+    });
+
     test("stores a customer name on an order", () => {
         db.prepare("INSERT INTO orders (customer_name) VALUES ('Ada Lovelace')").run();
         const order = db.prepare("SELECT customer_name FROM orders WHERE id = 1").get() as {

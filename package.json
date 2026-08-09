@@ -9,6 +9,7 @@
     "seed": "tsx src/db/seed.ts",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "css:build": "tailwindcss -i ./src/input.css -o ./public/css/style.css",
     "css:watch": "tailwindcss -i ./src/input.css -o ./public/css/style.css --watch"
@@ -38,6 +39,7 @@
     "@types/method-override": "^3.0.0",
     "@types/node": "^26.2.0",
     "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "supertest": "^7.2.2",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.11",
