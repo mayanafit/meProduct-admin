@@ -7,6 +7,9 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/db/seed.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "css:build": "tailwindcss -i ./src/input.css -o ./public/css/style.css",
     "css:watch": "tailwindcss -i ./src/input.css -o ./public/css/style.css --watch"
   },
@@ -25,15 +28,20 @@
     "better-sqlite3": "^13.0.3",
     "dotenv": "^17.4.2",
     "ejs": "^6.0.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "method-override": "^3.0.0"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
     "@types/better-sqlite3": "^9.6.0",
     "@types/express": "^5.0.6",
+    "@types/method-override": "^3.0.0",
     "@types/node": "^26.2.0",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.2.2",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.11",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

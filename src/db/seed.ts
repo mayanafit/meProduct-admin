@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { db, initSchema } from "./index.js";
+import type { Database as DB } from "better-sqlite3";
+import { config } from "../config/env.js";
+import { createDatabase, initSchema } from "./index.js";
 
 interface ProductSeed {
     name: string;
@@ -16,7 +18,7 @@ function loadProducts(): ProductSeed[] {
     return JSON.parse(raw) as ProductSeed[];
 }
 
-function seedProducts(): void {
+function seedProducts(db: DB): void {
     const products = loadProducts();
 
     const insertProduct = db.prepare(
@@ -46,16 +48,19 @@ function seedProducts(): void {
 }
 
 function main(): void {
-    initSchema();
+    const db = createDatabase(config.DB_PATH);
+    initSchema(db);
 
     const existing = db.prepare("SELECT COUNT(*) as count FROM products").get() as { count: number };
 
     if (existing.count > 0) {
-        console.log(`Skipped: products table already has ${existing.count} row(s). Delete data.sqlite to reseed from scratch.`);
+        console.log(
+            `Skipped: products table already has ${existing.count} row(s). Delete ${config.DB_PATH} to reseed from scratch.`
+        );
         return;
     }
 
-    seedProducts();
+    seedProducts(db);
 }
 
 main();
