@@ -1,0 +1,107 @@
+[
+    {
+        "name": "Classic Tee",
+        "sku": "TEE-001",
+        "price": 19.99,
+        "description": "100% cotton, regular fit.",
+        "stock_quantity": 50
+    },
+    {
+        "name": "Canvas Tote Bag",
+        "sku": "TOTE-001",
+        "price": 14.5,
+        "description": "Durable everyday tote.",
+        "stock_quantity": 30
+    },
+    {
+        "name": "Ceramic Mug",
+        "sku": "MUG-001",
+        "price": 9.99,
+        "description": "12oz, dishwasher safe.",
+        "stock_quantity": 100
+    },
+    {
+        "name": "Wireless Mouse",
+        "sku": "MOUSE-001",
+        "price": 24.0,
+        "description": "2.4GHz, ergonomic design.",
+        "stock_quantity": 15
+    },
+    {
+        "name": "Monitor 24-inch",
+        "sku": "MONITOR-001",
+        "price": 199.99,
+        "description": "Full HD, curved display.",
+        "stock_quantity": 20
+    },
+    {
+        "name": "Bluetooth Headphones",
+        "sku": "HEADPHONES-001",
+        "price": 59.99,
+        "description": "Noise-cancelling, over-ear.",
+        "stock_quantity": 25
+    },
+    {
+        "name": "Smartphone Case",
+        "sku": "CASE-001",
+        "price": 12.99,
+        "description": "Shockproof, slim design.",
+        "stock_quantity": 40
+    },
+    {
+        "name": "Portable Charger",
+        "sku": "CHARGER-001",
+        "price": 29.99,
+        "description": "10000mAh, fast charging.",
+        "stock_quantity": 35
+    },
+    {
+        "name": "LED Desk Lamp",
+        "sku": "LAMP-001",
+        "price": 34.99,
+        "description": "Adjustable brightness, USB powered.",
+        "stock_quantity": 18
+    },
+    {
+        "name": "Gaming Keyboard",
+        "sku": "KEYBOARD-001",
+        "price": 89.99,
+        "description": "Mechanical keys, RGB lighting.",
+        "stock_quantity": 22
+    },
+    {
+        "name": "Fitness Tracker",
+        "sku": "TRACKER-001",
+        "price": 49.99,
+        "description": "Heart rate monitor, sleep tracking.",
+        "stock_quantity": 28
+    },
+    {
+        "name": "Water Bottle",
+        "sku": "BOTTLE-001",
+        "price": 15.0,
+        "description": "Insulated, stainless steel.",
+        "stock_quantity": 60
+    },
+    {
+        "name": "Backpack",
+        "sku": "BACKPACK-001",
+        "price": 39.99,
+        "description": "Water-resistant, multiple compartments.",
+        "stock_quantity": 32
+    },
+    {
+        "name": "Sunglasses",
+        "sku": "SUNGLASSES-001",
+        "price": 24.99,
+        "description": "UV protection, polarized lenses.",
+        "stock_quantity": 45
+    },
+    {
+        "name": "Wireless Earbuds",
+        "sku": "EARBUDS-001",
+        "price": 79.99,
+        "description": "Bluetooth 5.0, touch controls.",
+        "stock_quantity": 30
+    }
+]

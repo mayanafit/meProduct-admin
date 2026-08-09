@@ -6,6 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "seed": "tsx src/db/seed.ts",
     "css:build": "tailwindcss -i ./src/input.css -o ./public/css/style.css",
     "css:watch": "tailwindcss -i ./src/input.css -o ./public/css/style.css --watch"
   },
