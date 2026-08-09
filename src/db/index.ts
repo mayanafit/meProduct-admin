@@ -28,8 +28,14 @@ export function initSchema(db: DB): void {
       sku TEXT UNIQUE,
       price REAL NOT NULL,
       description TEXT,
-      stock_quantity INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      -- Enforced here rather than in a repository so every write path,
+      -- including order placement, inherits the invariant.
+      stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      -- NULL = active. Products are archived rather than deleted: their
+      -- stock_movements and order_items rows reference them, and that history
+      -- is worth more than the ability to remove a row.
+      archived_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS stock_movements (

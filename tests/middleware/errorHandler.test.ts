@@ -1,4 +1,4 @@
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, vi, afterEach } from "vitest";
 import express from "express";
 import type { Express } from "express";
 import request from "supertest";
@@ -33,6 +33,10 @@ describe("notFound", () => {
 });
 
 describe("errorHandler", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     test("uses the status carried by an AppError", async () => {
         const app = buildHarness((a) => {
             a.get("/missing", () => {
@@ -74,6 +78,10 @@ describe("errorHandler", () => {
     });
 
     test("turns an unexpected error into a 500 without leaking its message", async () => {
+        // The handler logs unexpected errors; capture that instead of letting
+        // a deliberately alarming fake path print into the test output.
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
         const app = buildHarness((a) => {
             a.get("/boom", () => {
                 throw new Error("SQLITE_CORRUPT: /var/secret/path.sqlite");
@@ -85,5 +93,25 @@ describe("errorHandler", () => {
         expect(res.status).toBe(500);
         expect(res.text).not.toContain("/var/secret/path.sqlite");
         expect(res.text).toMatch(/something went wrong/i);
+
+        // Hidden from the user, but it must still reach the server log.
+        expect(logged).toHaveBeenCalledOnce();
+        expect(logged.mock.calls[0]?.[0]).toMatchObject({
+            message: "SQLITE_CORRUPT: /var/secret/path.sqlite",
+        });
+    });
+
+    test("does not log an AppError, which is an expected outcome", async () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const app = buildHarness((a) => {
+            a.get("/expected", () => {
+                throw new AppError("Out of stock", 400);
+            });
+        });
+
+        await request(app).get("/expected");
+
+        expect(logged).not.toHaveBeenCalled();
     });
 });
