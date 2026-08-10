@@ -1,34 +1,117 @@
 import { Router } from "express";
+import type { Database as DB } from "better-sqlite3";
+import { AppError, isAppError } from "../errors.js";
+import { listOrders, getOrderWithItems } from "../repositories/order.js";
+import { listProducts } from "../repositories/product.js";
+import { placeOrder, cancelOrder, setOrderStatus } from "../services/order.js";
+import type { OrderStatus } from "../types.js";
+import { readString, readId, readQuantityFields } from "./formValues.js";
 
-const router = Router();
+/**
+ * Order pages. As with products, validation failures re-render the form with
+ * the message inline; anything else goes to the error page.
+ */
+export function createOrderRouter(db: DB): Router {
+    const router = Router();
 
-router.get("/", (_, res) => {
-    res.status(200).json({ message: "List of orders" });
-});
+    function requireId(raw: string | undefined): number {
+        const id = readId(raw);
+        if (id === undefined) {
+            throw new AppError("That order id is not valid.", 404);
+        }
+        return id;
+    }
 
-router.post("/", (req, res) => {
-    const order = req.body;
-    // Logic to save the order would go here
-    res.status(201).json({ message: "Order created", order });
-});
+    function loadOrderOrThrow(id: number) {
+        const order = getOrderWithItems(db, id);
+        if (order === undefined) {
+            throw new AppError(`Order ${id} does not exist.`, 404);
+        }
+        return order;
+    }
 
-router.get("/:id", (req, res) => {
-    const orderId = req.params.id;
-    // Logic to retrieve the order by ID would go here
-    res.status(200).json({ message: `Details of order ${orderId}` });
-});
+    router.get("/", (_req, res) => {
+        res.render("orders/index", { title: "Orders", orders: listOrders(db) });
+    });
 
-router.put("/:id", (req, res) => {
-    const orderId = req.params.id;
-    const updatedOrder = req.body;
-    // Logic to update the order by ID would go here
-    res.status(200).json({ message: `Order ${orderId} updated`, updatedOrder });
-});
+    router.get("/new", (_req, res) => {
+        res.render("orders/new", {
+            title: "New order",
+            error: null,
+            products: listProducts(db),
+            customerName: "",
+            quantities: {},
+        });
+    });
 
-router.delete("/:id", (req, res) => {
-    const orderId = req.params.id;
-    // Logic to delete the order by ID would go here
-    res.status(200).json({ message: `Order ${orderId} deleted` });
-});
+    router.post("/", (req, res) => {
+        const customerName = readString(req.body, "customer_name") ?? "";
+        const lines = readQuantityFields(req.body);
 
-export default router;  
+        try {
+            const order = placeOrder(db, { customerName, lines });
+            res.redirect(`${req.baseUrl}/${order.id}`);
+        } catch (err) {
+            if (!isAppError(err)) throw err;
+
+            res.status(err.status).render("orders/new", {
+                title: "New order",
+                error: err.message,
+                products: listProducts(db),
+                customerName,
+                // Give the user back what they entered rather than a blank form.
+                quantities: Object.fromEntries(
+                    lines.map((line) => [line.productId, line.quantity])
+                ),
+            });
+        }
+    });
+
+    router.get("/:id", (req, res) => {
+        const order = loadOrderOrThrow(requireId(req.params.id));
+
+        res.render("orders/show", { title: `Order #${order.id}`, order, error: null });
+    });
+
+    router.post("/:id/status", (req, res) => {
+        const id = requireId(req.params.id);
+
+        try {
+            setOrderStatus(db, id, (readString(req.body, "status") ?? "") as OrderStatus);
+        } catch (err) {
+            if (!isAppError(err) || err.status === 404) throw err;
+
+            const order = loadOrderOrThrow(id);
+            res.status(err.status).render("orders/show", {
+                title: `Order #${order.id}`,
+                order,
+                error: err.message,
+            });
+            return;
+        }
+
+        res.redirect(`${req.baseUrl}/${id}`);
+    });
+
+    router.post("/:id/cancel", (req, res) => {
+        const id = requireId(req.params.id);
+
+        try {
+            cancelOrder(db, id);
+        } catch (err) {
+            if (!isAppError(err) || err.status === 404) throw err;
+
+            const order = loadOrderOrThrow(id);
+            res.status(err.status).render("orders/show", {
+                title: `Order #${order.id}`,
+                order,
+                error: err.message,
+            });
+            return;
+        }
+
+        res.redirect(`${req.baseUrl}/${id}`);
+    });
+
+    return router;
+}

@@ -1,0 +1,18 @@
+<%#
+  Locals: items — [{ label, href }]. The last entry is the current page and
+  renders as plain text; everything before it is a link.
+%>
+<nav aria-label="Breadcrumb" class="mb-3">
+  <ol class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+    <% items.forEach(function (item, i) { %>
+      <li class="flex items-center gap-2">
+        <% if (i > 0) { %><span aria-hidden="true" class="text-slate-300">/</span><% } %>
+        <% if (i === items.length - 1) { %>
+          <span aria-current="page" class="text-slate-700"><%= item.label %></span>
+        <% } else { %>
+          <a href="<%= item.href %>" class="hover:text-slate-900 hover:underline"><%= item.label %></a>
+        <% } %>
+      </li>
+    <% }); %>
+  </ol>
+</nav>

@@ -1,0 +1,47 @@
+<%#
+  Shared by new.ejs and edit.ejs.
+  Locals: action, method (null for POST, "PUT" for the override), values, submitLabel.
+%>
+<form data-testid="product-form" action="<%= action %>" method="post" class="space-y-5 rounded-lg border border-slate-200 bg-white p-6">
+  <% if (method) { %><input type="hidden" name="_method" value="<%= method %>"><% } %>
+
+  <div>
+    <label for="name" class="block text-sm font-medium text-slate-700">Name</label>
+    <input id="name" name="name" type="text" required value="<%= values.name %>"
+           class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none">
+  </div>
+
+  <div class="grid gap-5 sm:grid-cols-2">
+    <div>
+      <label for="sku" class="block text-sm font-medium text-slate-700">SKU</label>
+      <input id="sku" name="sku" type="text" value="<%= values.sku %>"
+             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-sm focus:border-slate-500 focus:outline-none">
+      <p class="mt-1 text-xs text-slate-500">Optional, but must be unique.</p>
+    </div>
+    <div>
+      <label for="price" class="block text-sm font-medium text-slate-700">Price</label>
+      <input id="price" name="price" type="number" step="0.01" min="0" required value="<%= values.price %>"
+             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm tabular-nums focus:border-slate-500 focus:outline-none">
+    </div>
+  </div>
+
+  <div>
+    <label for="description" class="block text-sm font-medium text-slate-700">Description</label>
+    <textarea id="description" name="description" rows="3"
+              class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"><%= values.description %></textarea>
+  </div>
+
+  <% if (typeof showStock !== "undefined" && showStock) { %>
+    <div>
+      <label for="stock_quantity" class="block text-sm font-medium text-slate-700">Opening stock</label>
+      <input id="stock_quantity" name="stock_quantity" type="number" step="1" min="0" required value="<%= values.stock_quantity %>"
+             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm tabular-nums focus:border-slate-500 focus:outline-none">
+      <p class="mt-1 text-xs text-slate-500">Recorded as the opening stock movement.</p>
+    </div>
+  <% } %>
+
+  <div class="flex items-center gap-3 pt-2">
+    <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"><%= submitLabel %></button>
+    <a href="/admin/products" class="text-sm text-slate-600 hover:underline">Cancel</a>
+  </div>
+</form>

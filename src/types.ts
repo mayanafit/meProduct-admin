@@ -62,6 +62,9 @@ export type OrderStatus = "pending" | "paid" | "shipped" | "cancelled";
 export interface Order {
     id: number;
     customer_name: string | null;
+    customer_email: string | null;
+    /** Unguessable public handle, used for the customer's confirmation page. */
+    reference: string;
     status: OrderStatus;
     created_at: string;
 }
@@ -99,5 +102,35 @@ export interface NewOrderLine {
 
 export interface NewOrder {
     customerName: string | null;
+    /** Optional: admin-placed orders often have no email. */
+    customerEmail?: string | null;
     lines: NewOrderLine[];
+}
+
+/**
+ * A customer's basket: product id → quantity, and nothing else.
+ * Names and prices are resolved from the database on every render so they can
+ * never go stale; `placeOrder` remains the only place a price is snapshotted.
+ */
+export type Cart = Record<number, number>;
+
+/** A cart line resolved against current catalogue data. */
+export interface CartItem {
+    product: Product;
+    quantity: number;
+    lineTotal: number;
+}
+
+/** Something that will block checkout, surfaced on the cart page before it does. */
+export interface CartIssue {
+    productId: number;
+    productName: string;
+    message: string;
+}
+
+export interface ResolvedCart {
+    items: CartItem[];
+    total: number;
+    itemCount: number;
+    issues: CartIssue[];
 }

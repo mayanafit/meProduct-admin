@@ -1,0 +1,68 @@
+<%- include("../partials/head", { title: title, nav: "shop" }) %>
+
+<h1 class="mb-6 text-2xl font-semibold tracking-tight">Your cart</h1>
+
+<% if (cart.issues.length > 0) { %>
+  <div role="alert" class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <ul class="space-y-1">
+      <% cart.issues.forEach(function (issue) { %>
+        <li data-testid="cart-issue"><%= issue.message %></li>
+      <% }); %>
+    </ul>
+  </div>
+<% } %>
+
+<% if (cart.items.length === 0) { %>
+  <p class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+    Your cart is empty. <a href="/" class="underline">Browse the shop</a>.
+  </p>
+<% } else { %>
+  <div class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white sm:mx-0 sm:rounded-lg sm:border">
+    <table class="w-full min-w-[560px] text-sm">
+      <thead class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th class="whitespace-nowrap px-4 py-3 font-medium">Product</th>
+          <th class="whitespace-nowrap px-4 py-3 text-right font-medium">Price</th>
+          <th class="whitespace-nowrap px-4 py-3 text-right font-medium">Quantity</th>
+          <th class="whitespace-nowrap px-4 py-3 text-right font-medium">Line total</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        <% cart.items.forEach(function (item) { %>
+          <tr data-testid="cart-row" data-product-id="<%= item.product.id %>">
+            <td class="px-4 py-3">
+              <a href="/products/<%= item.product.id %>" class="font-medium text-slate-900 hover:underline">
+                <%= item.product.name %>
+              </a>
+            </td>
+            <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums"><%= item.product.price.toFixed(2) %></td>
+            <td class="px-4 py-3">
+              <form action="/cart/<%= item.product.id %>" method="post" class="flex items-center justify-end gap-2">
+                <input name="quantity" type="number" min="0" value="<%= item.quantity %>"
+                       class="w-20 rounded-md border border-slate-300 px-2 py-1 text-right text-sm tabular-nums focus:border-slate-500 focus:outline-none">
+                <button type="submit" class="whitespace-nowrap text-xs text-slate-600 hover:underline">Update</button>
+              </form>
+            </td>
+            <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums"><%= item.lineTotal.toFixed(2) %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+      <tfoot class="border-t border-slate-200 bg-slate-50">
+        <tr>
+          <td colspan="3" class="px-4 py-3 text-right text-xs uppercase tracking-wide text-slate-500">Total</td>
+          <td data-testid="cart-total" class="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums"><%= cart.total.toFixed(2) %></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="mt-6 flex flex-wrap items-center gap-3">
+    <a href="/checkout" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+      Checkout
+    </a>
+    <a href="/" class="text-sm text-slate-600 hover:underline">Keep shopping</a>
+    <p class="text-xs text-slate-500">Set a quantity to 0 to remove an item.</p>
+  </div>
+<% } %>
+
+<%- include("../partials/foot") %>

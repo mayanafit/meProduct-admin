@@ -103,6 +103,25 @@ describe("initSchema", () => {
         expect(product.archived_at).toBeNull();
     });
 
+    test("stores a customer email on an order", () => {
+        db.prepare(
+            "INSERT INTO orders (customer_name, customer_email) VALUES ('Ada', 'ada@example.com')"
+        ).run();
+        const order = db.prepare("SELECT customer_email FROM orders WHERE id = 1").get() as {
+            customer_email: string;
+        };
+
+        expect(order.customer_email).toBe("ada@example.com");
+    });
+
+    test("rejects two orders sharing a reference", () => {
+        db.prepare("INSERT INTO orders (reference) VALUES ('ref-1')").run();
+
+        expect(() => db.prepare("INSERT INTO orders (reference) VALUES ('ref-1')").run()).toThrow(
+            /UNIQUE/i
+        );
+    });
+
     test("stores a customer name on an order", () => {
         db.prepare("INSERT INTO orders (customer_name) VALUES ('Ada Lovelace')").run();
         const order = db.prepare("SELECT customer_name FROM orders WHERE id = 1").get() as {

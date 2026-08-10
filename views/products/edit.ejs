@@ -1,0 +1,31 @@
+<%- include("../partials/head", { title: title }) %>
+
+<%- include("../partials/breadcrumb", { items: [
+  { label: "Products", href: "/admin/products" },
+  { label: product.name, href: "/admin/products/" + product.id },
+  { label: "Edit" }
+] }) %>
+
+<h1 class="mb-6 text-2xl font-semibold tracking-tight">Edit product</h1>
+
+<%- include("../partials/flash", { error: error }) %>
+
+<%#
+  Stock is deliberately absent: it changes only through an order or a recorded
+  adjustment on the product page, never by silently editing a number here.
+%>
+<%- include("_form", {
+  action: "/admin/products/" + product.id,
+  method: "PUT",
+  values: {
+    name: product.name,
+    sku: product.sku || "",
+    price: product.price,
+    description: product.description || "",
+    stock_quantity: product.stock_quantity
+  },
+  showStock: false,
+  submitLabel: "Save changes"
+}) %>
+
+<%- include("../partials/foot") %>

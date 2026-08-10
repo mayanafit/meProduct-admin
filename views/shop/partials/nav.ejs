@@ -1,0 +1,11 @@
+<header class="border-b border-slate-200 bg-white">
+  <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
+    <a href="/" class="font-semibold tracking-tight text-slate-900">meProduct</a>
+    <a href="/cart" class="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+      Cart
+      <% const count = typeof cartCount === "number" ? cartCount : 0; %>
+      <span data-testid="cart-count"
+            class="rounded-full px-2 py-0.5 text-xs font-semibold <%= count > 0 ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500" %>"><%= count %></span>
+    </a>
+  </div>
+</header>

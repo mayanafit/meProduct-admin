@@ -1,4 +1,4 @@
-import productRoutes from './product.js';
-import orderRoutes from './order.js';
-
-export { productRoutes, orderRoutes };
+export { createShopRouter } from "./shop.js";
+export { createDashboardRouter } from "./dashboard.js";
+export { createProductRouter } from "./product.js";
+export { createOrderRouter } from "./order.js";

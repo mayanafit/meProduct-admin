@@ -19,8 +19,23 @@ function requiredNumber(name: string, fallback: number): number {
 
 const DB_PATH_RAW = process.env["DB_PATH"] ?? "./data.sqlite";
 
+/**
+ * Signs the session cookie. Defaults so a fresh clone and the test suite run
+ * without setup; a real deployment must set it, hence the warning.
+ */
+function sessionSecret(): string {
+    const secret = process.env["SESSION_SECRET"];
+    if (secret !== undefined && secret !== "") return secret;
+
+    if (process.env["NODE_ENV"] === "production") {
+        console.warn("SESSION_SECRET is not set — sessions are signed with a public default.");
+    }
+    return "meproduct-dev-session-secret";
+}
+
 export const config = {
     PORT: requiredNumber("PORT", 3000),
+    SESSION_SECRET: sessionSecret(),
     /** Absolute, so the DB resolves the same regardless of cwd. */
     DB_PATH: path.resolve(process.cwd(), DB_PATH_RAW),
     NODE_ENV: process.env["NODE_ENV"] ?? "development",

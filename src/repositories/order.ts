@@ -25,7 +25,7 @@ export interface NewOrderItemRow {
 export function listOrders(db: DB): OrderSummary[] {
     return db
         .prepare(
-            `SELECT o.id, o.customer_name, o.status, o.created_at,
+            `SELECT o.id, o.customer_name, o.customer_email, o.reference, o.status, o.created_at,
                     COUNT(oi.id) AS item_count,
                     COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total
              FROM orders o
@@ -36,10 +36,19 @@ export function listOrders(db: DB): OrderSummary[] {
         .all() as OrderSummary[];
 }
 
+const ORDER_COLUMNS = `id, customer_name, customer_email, reference, status, created_at`;
+
 export function getOrderById(db: DB, id: number): Order | undefined {
-    return db
-        .prepare(`SELECT id, customer_name, status, created_at FROM orders WHERE id = ?`)
-        .get(id) as Order | undefined;
+    return db.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE id = ?`).get(id) as
+        | Order
+        | undefined;
+}
+
+/** Lookup by the public reference, for the customer's confirmation page. */
+export function getOrderByReference(db: DB, reference: string): Order | undefined {
+    return db.prepare(`SELECT ${ORDER_COLUMNS} FROM orders WHERE reference = ?`).get(reference) as
+        | Order
+        | undefined;
 }
 
 /** The order plus its line items, each joined to its product name. */
@@ -63,11 +72,25 @@ export function getOrderWithItems(db: DB, id: number): OrderWithItems | undefine
     return { ...order, items, total };
 }
 
+export interface NewOrderRow {
+    customerName: string | null;
+    customerEmail: string | null;
+    /** Callers generate this; the service does it so every order gets one. */
+    reference: string;
+}
+
 /** Returns the new order's id. Status defaults to 'pending' in the schema. */
-export function insertOrder(db: DB, customerName: string | null): number {
+export function insertOrder(db: DB, order: NewOrderRow): number {
     const result = db
-        .prepare(`INSERT INTO orders (customer_name) VALUES (?)`)
-        .run(customerName);
+        .prepare(
+            `INSERT INTO orders (customer_name, customer_email, reference)
+             VALUES (@customer_name, @customer_email, @reference)`
+        )
+        .run({
+            customer_name: order.customerName,
+            customer_email: order.customerEmail,
+            reference: order.reference,
+        });
 
     return Number(result.lastInsertRowid);
 }

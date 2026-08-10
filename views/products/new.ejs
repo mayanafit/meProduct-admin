@@ -1,0 +1,20 @@
+<%- include("../partials/head", { title: title }) %>
+
+<%- include("../partials/breadcrumb", { items: [
+  { label: "Products", href: "/admin/products" },
+  { label: "New" }
+] }) %>
+
+<h1 class="mb-6 text-2xl font-semibold tracking-tight">New product</h1>
+
+<%- include("../partials/flash", { error: error }) %>
+
+<%- include("_form", {
+  action: "/admin/products",
+  method: null,
+  values: values,
+  showStock: true,
+  submitLabel: "Create product"
+}) %>
+
+<%- include("../partials/foot") %>
