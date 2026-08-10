@@ -1,0 +1,54 @@
+<%- include("../partials/head", { title: title, nav: "shop" }) %>
+
+<div class="mb-8">
+  <h1 class="text-3xl font-semibold tracking-tight">Everyday things, made well</h1>
+  <p class="mt-2 max-w-prose text-slate-600">
+    Browse the catalogue and add what you need to your cart.
+  </p>
+</div>
+
+<% if (products.length === 0) { %>
+  <p class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+    Nothing is in stock right now. Please check back soon.
+  </p>
+<% } else { %>
+  <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <% products.forEach(function (product) { %>
+      <li data-testid="shop-product-card" data-product-id="<%= product.id %>"
+          class="flex flex-col rounded-lg border border-slate-200 bg-white p-5">
+        <a href="/products/<%= product.id %>" class="text-base font-medium text-slate-900 hover:underline">
+          <%= product.name %>
+        </a>
+        <% if (product.description) { %>
+          <p class="mt-1 line-clamp-2 text-sm text-slate-500"><%= product.description %></p>
+        <% } %>
+
+        <div class="mt-4 flex items-end justify-between gap-3">
+          <span class="text-lg font-semibold tabular-nums"><%= product.price.toFixed(2) %></span>
+          <% if (product.stock_quantity === 0) { %>
+            <span class="text-xs font-medium text-red-600">Out of stock</span>
+          <% } else if (product.stock_quantity < 10) { %>
+            <span class="text-xs font-medium text-amber-600">Only <%= product.stock_quantity %> left</span>
+          <% } %>
+        </div>
+
+        <% if (product.stock_quantity > 0) { %>
+          <form action="/cart" method="post" class="mt-4">
+            <input type="hidden" name="product_id" value="<%= product.id %>">
+            <input type="hidden" name="quantity" value="1">
+            <button type="submit" class="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700">
+              Add to cart
+            </button>
+          </form>
+        <% } else { %>
+          <button type="button" disabled
+                  class="mt-4 w-full cursor-not-allowed rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400">
+            Unavailable
+          </button>
+        <% } %>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
+
+<%- include("../partials/foot") %>

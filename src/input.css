@@ -1,1 +1,5 @@
 @import "tailwindcss";
+
+/* Templates live at the project root, outside this file's directory, so
+   Tailwind has to be told where to scan for class names. */
+@source "../views";

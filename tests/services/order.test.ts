@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import type { Database as DB } from "better-sqlite3";
-import { placeOrder, cancelOrder } from "../../src/services/order.js";
+import { placeOrder, cancelOrder, setOrderStatus } from "../../src/services/order.js";
+import type { OrderStatus } from "../../src/types.js";
 import { listOrders, getOrderWithItems } from "../../src/repositories/order.js";
 import { getProductById, archiveProduct } from "../../src/repositories/product.js";
 import { listMovementsForProduct } from "../../src/repositories/stockMovement.js";
@@ -114,6 +115,78 @@ describe("order service", () => {
             ).toThrow(/only 10/i);
 
             expect(getProductById(db, mugId)?.stock_quantity).toBe(10);
+        });
+
+        test("records the customer email", () => {
+            const order = placeOrder(db, {
+                customerName: "Ada",
+                customerEmail: "ada@example.com",
+                lines: [{ productId: teeId, quantity: 1 }],
+            });
+
+            expect(order.customer_email).toBe("ada@example.com");
+        });
+
+        test("assigns an unguessable reference", () => {
+            const order = placeOrder(db, {
+                customerName: "Ada",
+                lines: [{ productId: teeId, quantity: 1 }],
+            });
+
+            // Long enough not to be enumerable, unlike the integer id.
+            expect(order.reference).toMatch(/^[0-9a-f-]{36}$/);
+        });
+
+        test("gives every order a different reference", () => {
+            const a = placeOrder(db, { customerName: "A", lines: [{ productId: teeId, quantity: 1 }] });
+            const b = placeOrder(db, { customerName: "B", lines: [{ productId: teeId, quantity: 1 }] });
+
+            expect(a.reference).not.toBe(b.reference);
+        });
+
+        test("allows an order with no email, for admin-placed orders", () => {
+            const order = placeOrder(db, {
+                customerName: "Walk-in",
+                lines: [{ productId: teeId, quantity: 1 }],
+            });
+
+            expect(order.customer_email).toBeNull();
+        });
+
+        test("treats a blank email as absent", () => {
+            const order = placeOrder(db, {
+                customerName: "Ada",
+                customerEmail: "   ",
+                lines: [{ productId: teeId, quantity: 1 }],
+            });
+
+            expect(order.customer_email).toBeNull();
+        });
+
+        test.each(["nope", "no-at-sign.com", "@nolocal.com", "trailing@"])(
+            "rejects the malformed email %s",
+            (email) => {
+                expect(() =>
+                    placeOrder(db, {
+                        customerName: "Ada",
+                        customerEmail: email,
+                        lines: [{ productId: teeId, quantity: 1 }],
+                    })
+                ).toThrow(/valid email/i);
+            }
+        );
+
+        test("persists nothing when the email is malformed", () => {
+            expect(() =>
+                placeOrder(db, {
+                    customerName: "Ada",
+                    customerEmail: "nope",
+                    lines: [{ productId: teeId, quantity: 1 }],
+                })
+            ).toThrow();
+
+            expect(countRows(db, "orders")).toBe(0);
+            expect(getProductById(db, teeId)?.stock_quantity).toBe(50);
         });
 
         test("treats a blank customer name as absent", () => {
@@ -288,6 +361,117 @@ describe("order service", () => {
             archiveProduct(db, teeId);
 
             expect(() => cancelOrder(db, order.id)).not.toThrow();
+            expect(getProductById(db, teeId)?.stock_quantity).toBe(50);
+        });
+    });
+
+    describe("setOrderStatus", () => {
+        function placedOrder(): number {
+            return placeOrder(db, {
+                customerName: "Ada",
+                lines: [{ productId: teeId, quantity: 3 }],
+            }).id;
+        }
+
+        test.each([
+            ["pending", "paid"],
+            ["pending", "shipped"],
+        ] as const)("allows %s -> %s", (_from, to) => {
+            const id = placedOrder();
+
+            expect(setOrderStatus(db, id, to).status).toBe(to);
+        });
+
+        test("allows paid -> shipped", () => {
+            const id = placedOrder();
+            setOrderStatus(db, id, "paid");
+
+            expect(setOrderStatus(db, id, "shipped").status).toBe("shipped");
+        });
+
+        test("moves no stock and writes no movement", () => {
+            const id = placedOrder();
+            const movementsBefore = listMovementsForProduct(db, teeId).length;
+
+            setOrderStatus(db, id, "paid");
+            setOrderStatus(db, id, "shipped");
+
+            // Goods were committed at placement; only cancelOrder reverses them.
+            expect(getProductById(db, teeId)?.stock_quantity).toBe(47);
+            expect(listMovementsForProduct(db, teeId)).toHaveLength(movementsBefore);
+        });
+
+        test("rejects an unknown status as a 400, not a raw SQLite error", () => {
+            const id = placedOrder();
+
+            try {
+                setOrderStatus(db, id, "teleported" as OrderStatus);
+                expect.unreachable("should have thrown");
+            } catch (err) {
+                expect(err).toBeInstanceOf(AppError);
+                expect((err as AppError).status).toBe(400);
+                expect((err as AppError).message).not.toMatch(/CHECK|SQLITE/i);
+            }
+        });
+
+        test("rejects re-applying the status it already has", () => {
+            const id = placedOrder();
+            setOrderStatus(db, id, "paid");
+
+            expect(() => setOrderStatus(db, id, "paid")).toThrow(/already paid/i);
+        });
+
+        test("rejects moving backwards", () => {
+            const id = placedOrder();
+            setOrderStatus(db, id, "shipped");
+
+            expect(() => setOrderStatus(db, id, "paid")).toThrow(/shipped/i);
+        });
+
+        test("rejects any change once shipped", () => {
+            const id = placedOrder();
+            setOrderStatus(db, id, "shipped");
+
+            expect(() => setOrderStatus(db, id, "pending")).toThrow(AppError);
+        });
+
+        test("rejects any change once cancelled", () => {
+            const id = placedOrder();
+            cancelOrder(db, id);
+
+            expect(() => setOrderStatus(db, id, "paid")).toThrow(/cancelled/i);
+        });
+
+        test("refuses to cancel through this path, so stock reversal has one owner", () => {
+            const id = placedOrder();
+
+            expect(() => setOrderStatus(db, id, "cancelled")).toThrow(AppError);
+            // Stock must not have been credited by the rejected attempt.
+            expect(getProductById(db, teeId)?.stock_quantity).toBe(47);
+        });
+
+        test("throws a 404 for an order that does not exist", () => {
+            try {
+                setOrderStatus(db, 999, "paid");
+                expect.unreachable("should have thrown");
+            } catch (err) {
+                expect((err as AppError).status).toBe(404);
+            }
+        });
+
+        test("a shipped order can no longer be cancelled", () => {
+            const id = placedOrder();
+            setOrderStatus(db, id, "shipped");
+
+            expect(() => cancelOrder(db, id)).toThrow(/already shipped/i);
+            expect(getProductById(db, teeId)?.stock_quantity).toBe(47);
+        });
+
+        test("a paid order can still be cancelled, restoring stock", () => {
+            const id = placedOrder();
+            setOrderStatus(db, id, "paid");
+
+            expect(cancelOrder(db, id).status).toBe("cancelled");
             expect(getProductById(db, teeId)?.stock_quantity).toBe(50);
         });
     });

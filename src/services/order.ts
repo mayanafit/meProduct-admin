@@ -1,5 +1,6 @@
 import type { Database as DB } from "better-sqlite3";
-import type { NewOrder, NewOrderLine, OrderWithItems, Product } from "../types.js";
+import { randomUUID } from "node:crypto";
+import type { NewOrder, NewOrderLine, OrderStatus, OrderWithItems, Product } from "../types.js";
 import { AppError } from "../errors.js";
 import * as orders from "../repositories/order.js";
 import { getProductOrThrow, adjustStockWithReason } from "./product.js";
@@ -56,6 +57,22 @@ function getOrderWithItemsOrThrow(db: DB, id: number): OrderWithItems {
     return order;
 }
 
+/**
+ * Deliberately loose: a shape check, not an RFC-5322 parser. It catches typos
+ * without rejecting addresses that are unusual but valid.
+ */
+function cleanEmail(email: string | null | undefined): string | null {
+    const trimmed = email?.trim() ?? "";
+    if (trimmed === "") return null;
+
+    const [local, domain, ...rest] = trimmed.split("@");
+    if (rest.length > 0 || !local || !domain || !domain.includes(".")) {
+        throw new AppError(`"${trimmed}" is not a valid email address.`, 400);
+    }
+
+    return trimmed;
+}
+
 export function placeOrder(db: DB, input: NewOrder): OrderWithItems {
     const lines = normaliseLines(input.lines);
 
@@ -64,13 +81,18 @@ export function placeOrder(db: DB, input: NewOrder): OrderWithItems {
     }
 
     const customerName = input.customerName?.trim() || null;
+    const customerEmail = cleanEmail(input.customerEmail);
 
     const place = db.transaction((): number => {
         // Validate every line before writing anything, so the reported error is
         // about the offending product rather than whichever line came first.
         const resolved = lines.map((line) => ({ line, product: resolveOrderable(db, line) }));
 
-        const orderId = orders.insertOrder(db, customerName);
+        const orderId = orders.insertOrder(db, {
+            customerName,
+            customerEmail,
+            reference: randomUUID(),
+        });
 
         for (const { line, product } of resolved) {
             orders.insertOrderItem(db, {
@@ -89,6 +111,50 @@ export function placeOrder(db: DB, input: NewOrder): OrderWithItems {
     });
 
     return getOrderWithItemsOrThrow(db, place());
+}
+
+/**
+ * Which statuses each state may move to. `cancelled` is deliberately absent
+ * from every list: cancelling has stock consequences and belongs to
+ * `cancelOrder` alone, so there is exactly one code path that restores stock.
+ * `shipped` and `cancelled` are terminal.
+ */
+const ALLOWED_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+    pending: ["paid", "shipped"],
+    paid: ["shipped"],
+    shipped: [],
+    cancelled: [],
+};
+
+/**
+ * Advances an order through its lifecycle.
+ *
+ * Status changes move no stock — the goods were committed when the order was
+ * placed, and `cancelOrder` is the only thing that writes reversing movements.
+ * Do not add stock effects here.
+ */
+export function setOrderStatus(db: DB, id: number, status: OrderStatus): OrderWithItems {
+    // Guard before touching the database: without this the schema's CHECK
+    // constraint would surface as a raw SQLite error instead of a message.
+    if (!Object.prototype.hasOwnProperty.call(ALLOWED_TRANSITIONS, status)) {
+        throw new AppError(`"${status}" is not a valid order status.`, 400);
+    }
+
+    const order = getOrderWithItemsOrThrow(db, id);
+
+    if (order.status === status) {
+        throw new AppError(`Order ${id} is already ${status}.`, 409);
+    }
+    if (!ALLOWED_TRANSITIONS[order.status].includes(status)) {
+        throw new AppError(
+            `Order ${id} is ${order.status} and cannot be marked ${status}.`,
+            409
+        );
+    }
+
+    orders.updateOrderStatus(db, id, status);
+
+    return getOrderWithItemsOrThrow(db, id);
 }
 
 /**

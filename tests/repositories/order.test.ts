@@ -1,14 +1,21 @@
 import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import type { Database as DB } from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import {
     listOrders,
     getOrderById,
+    getOrderByReference,
     getOrderWithItems,
     insertOrder,
     insertOrderItem,
     updateOrderStatus,
 } from "../../src/repositories/order.js";
 import { createTestDb, seedTestProducts } from "../helpers/testDb.js";
+
+/** Most tests here don't care about email or reference; this keeps them out of the way. */
+function newOrder(db: DB, customerName: string | null): number {
+    return insertOrder(db, { customerName, customerEmail: null, reference: randomUUID() });
+}
 
 describe("order repository", () => {
     let db: DB;
@@ -28,7 +35,7 @@ describe("order repository", () => {
 
     describe("insertOrder / getOrderById", () => {
         test("round-trips an order, defaulting to pending", () => {
-            const id = insertOrder(db, "Ada Lovelace");
+            const id = newOrder(db, "Ada Lovelace");
 
             expect(getOrderById(db, id)).toMatchObject({
                 id,
@@ -38,7 +45,7 @@ describe("order repository", () => {
         });
 
         test("accepts an order with no customer name", () => {
-            const id = insertOrder(db, null);
+            const id = newOrder(db, null);
 
             expect(getOrderById(db, id)?.customer_name).toBeNull();
         });
@@ -46,11 +53,40 @@ describe("order repository", () => {
         test("returns undefined for an id that does not exist", () => {
             expect(getOrderById(db, 999)).toBeUndefined();
         });
+
+        test("stores email and reference", () => {
+            const id = insertOrder(db, {
+                customerName: "Ada",
+                customerEmail: "ada@example.com",
+                reference: "ref-abc",
+            });
+
+            expect(getOrderById(db, id)).toMatchObject({
+                customer_email: "ada@example.com",
+                reference: "ref-abc",
+            });
+        });
+    });
+
+    describe("getOrderByReference", () => {
+        test("finds an order by its reference", () => {
+            const id = insertOrder(db, {
+                customerName: "Ada",
+                customerEmail: null,
+                reference: "ref-abc",
+            });
+
+            expect(getOrderByReference(db, "ref-abc")).toMatchObject({ id });
+        });
+
+        test("returns undefined for an unknown reference", () => {
+            expect(getOrderByReference(db, "nope")).toBeUndefined();
+        });
     });
 
     describe("getOrderWithItems", () => {
         test("returns line items joined to their product names", () => {
-            const id = insertOrder(db, "Ada");
+            const id = newOrder(db, "Ada");
             insertOrderItem(db, { orderId: id, productId: teeId, quantity: 2, unitPrice: 19.99 });
             insertOrderItem(db, { orderId: id, productId: mugId, quantity: 1, unitPrice: 9.99 });
 
@@ -63,7 +99,7 @@ describe("order repository", () => {
         });
 
         test("computes the total from quantity times snapshotted unit price", () => {
-            const id = insertOrder(db, "Ada");
+            const id = newOrder(db, "Ada");
             insertOrderItem(db, { orderId: id, productId: teeId, quantity: 2, unitPrice: 19.99 });
             insertOrderItem(db, { orderId: id, productId: mugId, quantity: 3, unitPrice: 9.99 });
 
@@ -71,7 +107,7 @@ describe("order repository", () => {
         });
 
         test("returns an order with no items as an empty list and zero total", () => {
-            const id = insertOrder(db, "Ada");
+            const id = newOrder(db, "Ada");
             const order = getOrderWithItems(db, id);
 
             expect(order?.items).toEqual([]);
@@ -85,7 +121,7 @@ describe("order repository", () => {
 
     describe("listOrders", () => {
         test("rolls up item count and total per order", () => {
-            const id = insertOrder(db, "Ada");
+            const id = newOrder(db, "Ada");
             insertOrderItem(db, { orderId: id, productId: teeId, quantity: 2, unitPrice: 19.99 });
             insertOrderItem(db, { orderId: id, productId: mugId, quantity: 1, unitPrice: 9.99 });
 
@@ -96,14 +132,14 @@ describe("order repository", () => {
         });
 
         test("includes an order that has no items yet", () => {
-            insertOrder(db, "Ada");
+            newOrder(db, "Ada");
 
             expect(listOrders(db)).toMatchObject([{ item_count: 0, total: 0 }]);
         });
 
         test("returns the newest order first", () => {
-            insertOrder(db, "First");
-            insertOrder(db, "Second");
+            newOrder(db, "First");
+            newOrder(db, "Second");
 
             expect(listOrders(db).map((o) => o.customer_name)).toEqual(["Second", "First"]);
         });
@@ -121,7 +157,7 @@ describe("order repository", () => {
         });
 
         test("refuses a line against a product that does not exist", () => {
-            const id = insertOrder(db, "Ada");
+            const id = newOrder(db, "Ada");
 
             expect(() =>
                 insertOrderItem(db, { orderId: id, productId: 999, quantity: 1, unitPrice: 1 })
@@ -131,7 +167,7 @@ describe("order repository", () => {
 
     describe("updateOrderStatus", () => {
         test("changes the status", () => {
-            const id = insertOrder(db, "Ada");
+            const id = newOrder(db, "Ada");
 
             expect(updateOrderStatus(db, id, "shipped")).toBe(true);
             expect(getOrderById(db, id)?.status).toBe("shipped");

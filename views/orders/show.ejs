@@ -1,0 +1,83 @@
+<%- include("../partials/head", { title: title }) %>
+
+<%- include("../partials/breadcrumb", { items: [
+  { label: "Orders", href: "/admin/orders" },
+  { label: "#" + order.id }
+] }) %>
+
+<%
+  // Mirrors ALLOWED_TRANSITIONS in services/order.ts. Cancelling is a separate
+  // action because it moves stock back.
+  const NEXT_STATUSES = { pending: ["paid", "shipped"], paid: ["shipped"], shipped: [], cancelled: [] };
+  const STATUS_LABELS = { paid: "Mark as paid", shipped: "Mark as shipped" };
+  const nextStatuses = NEXT_STATUSES[order.status] || [];
+  const canCancel = order.status !== "cancelled" && order.status !== "shipped";
+%>
+
+<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <div class="min-w-0">
+    <h1 class="text-2xl font-semibold tracking-tight">Order #<%= order.id %></h1>
+    <p class="mt-1 text-sm text-slate-500">
+      <%= order.customer_name || "No customer name" %> · <%= order.created_at %>
+    </p>
+    <div class="mt-2" data-testid="order-status"><%- include("../partials/status", { status: order.status }) %></div>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-end gap-2">
+    <% nextStatuses.forEach(function (next) { %>
+      <form action="/admin/orders/<%= order.id %>/status" method="post">
+        <input type="hidden" name="status" value="<%= next %>">
+        <button type="submit" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <%= STATUS_LABELS[next] %>
+        </button>
+      </form>
+    <% }); %>
+
+    <% if (canCancel) { %>
+      <form action="/admin/orders/<%= order.id %>/cancel" method="post">
+        <button type="submit" class="rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+          Cancel order
+        </button>
+      </form>
+    <% } %>
+  </div>
+</div>
+
+<%- include("../partials/flash", { error: error }) %>
+
+<div class="-mx-4 overflow-x-auto border-y border-slate-200 bg-white sm:mx-0 sm:rounded-lg sm:border">
+  <table class="w-full min-w-[520px] text-sm">
+    <thead class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+      <tr>
+        <th class="whitespace-nowrap px-4 py-3 font-medium">Product</th>
+        <th class="whitespace-nowrap px-4 py-3 text-right font-medium">Unit price</th>
+        <th class="whitespace-nowrap px-4 py-3 text-right font-medium">Qty</th>
+        <th class="whitespace-nowrap px-4 py-3 text-right font-medium">Line total</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      <% order.items.forEach(function (item) { %>
+        <tr data-testid="order-item-row">
+          <td class="px-4 py-3">
+            <a href="/admin/products/<%= item.product_id %>" class="font-medium text-slate-900 hover:underline"><%= item.product_name %></a>
+          </td>
+          <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums"><%= item.unit_price.toFixed(2) %></td>
+          <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums"><%= item.quantity %></td>
+          <td class="whitespace-nowrap px-4 py-3 text-right tabular-nums"><%= (item.quantity * item.unit_price).toFixed(2) %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+    <tfoot class="border-t border-slate-200 bg-slate-50">
+      <tr>
+        <td colspan="3" class="px-4 py-3 text-right text-xs uppercase tracking-wide text-slate-500">Total</td>
+        <td data-testid="order-total" class="px-4 py-3 text-right font-semibold tabular-nums"><%= order.total.toFixed(2) %></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<p class="mt-4 text-xs text-slate-500">
+  Unit prices are those recorded when the order was placed, so later price changes don't alter this order.
+</p>
+
+<%- include("../partials/foot") %>
