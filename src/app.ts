@@ -10,7 +10,10 @@ import {
     createProductRouter,
     createOrderRouter,
     createShopRouter,
+    createChatRouter,
 } from "./routes/index.js";
+import { createAssistant, type Assistant } from "./services/assistant.js";
+import { createLlmClient } from "./services/llm.js";
 import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
@@ -26,11 +29,31 @@ export function configureViews(app: Express): void {
     app.set("views", path.join(ROOT, "views"));
 }
 
+export interface AppOptions {
+    /**
+     * Overrides the shop assistant. Tests pass a scripted stub so no model —
+     * and no network — is involved.
+     */
+    assistant?: Assistant;
+}
+
 /**
  * Builds the application without binding a port, so tests can drive it through
  * supertest with an injected in-memory database.
  */
-export function buildApp(db: DB): Express {
+export function buildApp(db: DB, options: AppOptions = {}): Express {
+    const assistant =
+        options.assistant ??
+        createAssistant(
+            db,
+            createLlmClient({
+                baseUrl: config.LLM_BASE_URL,
+                model: config.LLM_MODEL,
+                apiKey: config.LLM_API_KEY,
+                timeoutMs: config.LLM_TIMEOUT_MS,
+            })
+        );
+
     const app = express();
 
     configureViews(app);
@@ -80,6 +103,7 @@ export function buildApp(db: DB): Express {
 
     // Customers get the root; the admin lives under /admin. Neither is
     // authenticated — see the note in docs/phase-5-storefront.md.
+    app.use("/chat", createChatRouter(db, assistant));
     app.use("/", createShopRouter(db));
     app.use("/admin", createDashboardRouter(db));
     app.use("/admin/products", createProductRouter(db));
