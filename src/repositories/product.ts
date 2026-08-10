@@ -46,6 +46,48 @@ export function getProductBySku(db: DB, sku: string): Product | undefined {
         | undefined;
 }
 
+/** How many matches the shop assistant is ever handed in one reply. */
+const SEARCH_LIMIT = 10;
+
+/**
+ * Free-text search over active products, for the shop assistant.
+ *
+ * `%` and `_` in the query are escaped so a user typing "%" gets no matches
+ * rather than the whole catalogue. `COALESCE` keeps rows whose sku or
+ * description is NULL — without it, NULL propagation would silently drop them.
+ * A blank query lists everything active.
+ */
+export function searchProducts(db: DB, query: string): Product[] {
+    const trimmed = query.trim();
+
+    if (trimmed === "") {
+        return db
+            .prepare(
+                `SELECT ${COLUMNS} FROM products
+                 WHERE archived_at IS NULL
+                 ORDER BY name COLLATE NOCASE
+                 LIMIT ?`
+            )
+            .all(SEARCH_LIMIT) as Product[];
+    }
+
+    const pattern = `%${trimmed.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+
+    return db
+        .prepare(
+            `SELECT ${COLUMNS} FROM products
+             WHERE archived_at IS NULL
+               AND (
+                 name LIKE @pattern ESCAPE '\\'
+                 OR COALESCE(sku, '') LIKE @pattern ESCAPE '\\'
+                 OR COALESCE(description, '') LIKE @pattern ESCAPE '\\'
+               )
+             ORDER BY name COLLATE NOCASE
+             LIMIT @limit`
+        )
+        .all({ pattern, limit: SEARCH_LIMIT }) as Product[];
+}
+
 /** Returns the new product's id. Throws on a duplicate sku. */
 export function insertProduct(db: DB, product: NewProduct): number {
     const result = db

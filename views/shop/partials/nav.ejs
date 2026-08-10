@@ -9,3 +9,7 @@
     </a>
   </div>
 </header>
+
+<%# Included here rather than in the shared layout so it can only ever render
+    on shop pages — the admin uses a different nav partial. %>
+<%- include("chat") %>

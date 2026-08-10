@@ -29,6 +29,7 @@ export default defineConfig({
                 // exercised by running the app, not by unit tests.
                 "src/server.ts",
                 "src/db/seed.ts",
+                "src/scripts/**",
             ],
         },
     },
